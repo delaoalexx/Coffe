@@ -37,6 +37,19 @@ CREATE TABLE transactions (
     FOREIGN KEY (recipient_id) REFERENCES users(user_id)
 ) ENGINE=INNODB;
 
+-- 4ta tabla
+
+CREATE TABLE error_logs (
+    error_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
+    procedure_name VARCHAR(100) NOT NULL,
+    error_message TEXT NOT NULL,
+    user_id INT,
+    transaction_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (transaction_id) REFERENCES transactions(transaction_id)
+) ENGINE=INNODB;
+
 
 -- like a SIGN UP 
 DROP PROCEDURE IF EXISTS SP_CREATE_USER;
@@ -164,7 +177,7 @@ BEGIN
     DECLARE v_sender_active BOOLEAN;
     DECLARE v_recipient_active BOOLEAN;
     
-    -- crear handler para rollbacks auto, registrar errores en trsnferencias, crear tabla de errores, poner toodo en ingles
+    -- crear handler para rollbacks auto, registrar errores en tabla de errores, poner toodo en ingles
     -- monto positivo
     IF p_amount <= 0 THEN
         SIGNAL SQLSTATE '45000'
@@ -246,16 +259,22 @@ BEGIN
         u_recipient.first_name as recipient_name,
         u_recipient.last_name as recipient_lastname
     FROM transactions
-    JOIN users u_recipient ON t.recipient_id = u_recipient.user_id
-    WHERE t.transaction_id = v_transaction_id;
+    JOIN users u_recipient ON transactions.recipient_id = u_recipient.user_id
+    WHERE transactions.transaction_id = v_transaction_id;
     
 END$$
 
 DELIMITER ;
 
 
--- este es el usuario de pruebas
+-- este es user1  de pruebas
 CALL SP_CREATE_USER('Arthur', 'Morgan', 'deer@gmail.com', '12345678');
+-- update dinero para empezar a practicar
+UPDATE accounts SET balance = 1000 WHERE user_id = 1;
+
+-- este es el usuar2 de pruebas
+CALL SP_CREATE_USER('John', 'Marston', 'wolf@gmail.com', '87654321');
+
 
 -- verificar user de priebas
 	-- bien
@@ -265,6 +284,30 @@ CALL SP_LOGIN('deer@gmail.com', '012345678');
 	-- mal @
 CALL SP_LOGIN('deere@gmail.com', '12345678');
 
+
+-- TRANSFERENCIAS DEPRUEBA 
+
+	-- trasnf de prueba u1 a u2
+CALL SP_MAKE_TRANSFER(1, 'wolf@gmail.com', 10, 'concepto de pago');
+	-- trasnf de prueba u1 a u2 fallida por mucho dinero
+CALL SP_MAKE_TRANSFER(1, 'wolf@gmail.com', 10000, 'concepto de pago');
+	-- trasnf de prueba u1 a u2 fallida por mal correp
+CALL SP_MAKE_TRANSFER(1, 'wolfs@gmail.com', 10000, 'concepto de pago');
+	-- trasnf de prueba u1 a u2 fallida por numero negativo
+CALL SP_MAKE_TRANSFER(1, 'wolf@gmail.com', -11, 'concepto de pago');
+	-- trasnf de prueba u1 a u2 fallida por autotransaccion
+CALL SP_MAKE_TRANSFER(1, 'deer@gmail.com', 10, 'concepto de pago');
+
+	-- trasnf de prueba u2 a u1
+CALL SP_MAKE_TRANSFER(2, 'deer@gmail.com', 10, 'concepto de pago');
+	-- trasnf de prueba u2 a u1 fallida por mucho dinero
+CALL SP_MAKE_TRANSFER(2, 'deer@gmail.com', 10000, 'concepto de pago');
+	-- trasnf de prueba u2 a u1 fallida por mal correp
+CALL SP_MAKE_TRANSFER(2, 'deerr@gmail.com', 10000, 'concepto de pago');
+	-- trasnf de prueba u2 a u1 fallida por numero negativo
+CALL SP_MAKE_TRANSFER(2, 'deer@gmail.com', -11, 'concepto de pago');
+	-- trasnf de prueba u2 a u1 fallida por autotransaccion
+CALL SP_MAKE_TRANSFER(2, 'wolf@gmail.com', 10, 'concepto de pago');
 
 -- general tablas
 SELECT * FROM users;
