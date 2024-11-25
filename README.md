@@ -1,4 +1,4 @@
-# API PayMe (aka Coffe)
+# API pay-me (aka Coffe)
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 
