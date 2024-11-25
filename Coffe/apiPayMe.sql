@@ -37,7 +37,7 @@ CREATE TABLE transactions (
     FOREIGN KEY (recipient_id) REFERENCES users(user_id)
 ) ENGINE=INNODB;
 
--- 4ta tabla
+-- errores logs
 
 CREATE TABLE error_logs (
     error_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
@@ -49,6 +49,19 @@ CREATE TABLE error_logs (
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 ) ENGINE=INNODB;
 
+-- tarjetas (inusables aun)
+CREATE TABLE cards (
+    card_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
+    user_id INT NOT NULL,
+    card_number VARCHAR(16) NOT NULL,
+    card_holder VARCHAR(100) NOT NULL,
+    expiration_date DATE NOT NULL,
+    card_type ENUM('credit', 'debit') NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    INDEX idx_card_number (card_number)
+) ENGINE=INNODB;
 
 -- like a SIGN UP 
 DROP PROCEDURE IF EXISTS SP_CREATE_USER;
