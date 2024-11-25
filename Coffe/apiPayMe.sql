@@ -46,8 +46,7 @@ CREATE TABLE error_logs (
     user_id INT,
     transaction_id INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
-    FOREIGN KEY (transaction_id) REFERENCES transactions(transaction_id)
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
 ) ENGINE=INNODB;
 
 
