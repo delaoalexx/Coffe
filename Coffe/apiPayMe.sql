@@ -31,7 +31,7 @@ CREATE TABLE transactions (
     recipient_id INT NOT NULL, -- recipient es el usuaro que recibe la transferencia
     amount FLOAT NOT NULL,
     message TEXT, -- concepto de pago que el usuario puede enviar
-    status ENUM('pending', 'completed', 'failed') DEFAULT 'pending', -- the indian man on youtube said this is ok
+    status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (sender_id) REFERENCES users(user_id),
     FOREIGN KEY (recipient_id) REFERENCES users(user_id)
@@ -42,9 +42,9 @@ CREATE TABLE transactions (
 CREATE TABLE error_logs (
     error_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
     procedure_name VARCHAR(100) NOT NULL,
+    table_name VARCHAR(100) NOT NULL,
     error_message TEXT NOT NULL,
     user_id INT,
-    transaction_id INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 ) ENGINE=INNODB;
@@ -90,12 +90,12 @@ BEGIN
     
     IF p_email NOT REGEXP '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}$' THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Formato de correo electronico no valido';
+        SET MESSAGE_TEXT = 'Invalid email format';
     END IF;
     
     IF EXISTS (SELECT 1 FROM users WHERE email = p_email) THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Correo electronico en uso';
+        SET MESSAGE_TEXT = 'E-mail in use';
     END IF;
     
     IF LENGTH(p_password) < 8 THEN
@@ -205,13 +205,13 @@ BEGIN
     -- existe recipiente
     IF v_recipient_id IS NULL THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Destinatario no encontrado';
+        SET MESSAGE_TEXT = 'Recipient not found';
     END IF;
     
     -- no autotransfer
     IF p_sender_id = v_recipient_id THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'No puedes transferir dinero a tu propia cuenta';
+        SET MESSAGE_TEXT = 'You cannot transfer money to your own account';
     END IF;
     
     -- ambas activas
@@ -220,7 +220,7 @@ BEGIN
     
     IF v_sender_active = FALSE OR v_recipient_active = FALSE THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Una o ambas cuentas están inactivas';
+        SET MESSAGE_TEXT = 'One or both accounts are inactive';
     END IF;
     
     -- get dinero del sender
