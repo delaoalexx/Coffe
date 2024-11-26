@@ -2,6 +2,9 @@ DROP DATABASE IF EXISTS apiPayMe;
 CREATE DATABASE apiPayMe;
 USE apiPayMe;
 
+
+-- DUDAS: uso del handler en los rollbacks, cambiar a decimales, distribucion de scripts, uso de railway, cambio de prefijos, documentacion de los endpoints, 
+
 -- Ale, remember use english for extra '.'
 
 CREATE TABLE users (
@@ -189,11 +192,12 @@ BEGIN
     DECLARE v_sender_active BOOLEAN;
     DECLARE v_recipient_active BOOLEAN;
     
-    -- crear handler para rollbacks auto, registrar errores en tabla de errores, poner toodo en ingles
+    -- crear handler para rollbacks auto, registrar errores en tabla de errores, poner toodo en ingles(tambien comentarios
+    
     -- monto positivo
     IF p_amount <= 0 THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'El monto debe ser mayor a 0';
+        SET MESSAGE_TEXT = 'Amount must be greater than 0';
     END IF;
     
     -- get idd con el correo
@@ -301,6 +305,8 @@ CALL SP_LOGIN('deere@gmail.com', '12345678');
 
 	-- trasnf de prueba u1 a u2
 CALL SP_MAKE_TRANSFER(1, 'wolf@gmail.com', 10, 'concepto de pago');
+-- trasnf de prueba u1 a u2 con null en message
+CALL SP_MAKE_TRANSFER(1, 'wolf@gmail.com', 10, null);
 	-- trasnf de prueba u1 a u2 fallida por mucho dinero
 CALL SP_MAKE_TRANSFER(1, 'wolf@gmail.com', 10000, 'concepto de pago');
 	-- trasnf de prueba u1 a u2 fallida por mal correp
