@@ -72,7 +72,7 @@ app.post('/users', async (req, res) => {
 });
 
 // LOGIN
-/*
+
 app.post('/login', async (req, res) => {
     let db;
     try {
@@ -85,9 +85,8 @@ app.post('/login', async (req, res) => {
         );
         
         res.json({
-            message: 'Login exitoso',
-            user: result[0][0],
-            accounts: result[1]
+            message: 'Login exitoso'
+
         });
     } catch(err) {
         console.error('Error en login:', err);
@@ -98,7 +97,8 @@ app.post('/login', async (req, res) => {
     }
 });
 
-*/
+
+
 
 
 

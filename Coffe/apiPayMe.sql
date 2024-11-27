@@ -2,6 +2,7 @@ DROP DATABASE IF EXISTS apiPayMe;
 CREATE DATABASE apiPayMe;
 USE apiPayMe;
 
+-- PENDIENTES: poner nombres en ingles, poner comentarios
 
 -- DUDAS: uso del handler en los rollbacks, cambiar a decimales, distribucion de scripts, uso de railway, cambio de prefijos, documentacion de los endpoints, 
 
@@ -291,7 +292,7 @@ UPDATE accounts SET balance = 1000 WHERE user_id = 1;
 -- este es el usuar2 de pruebas
 CALL SP_CREATE_USER('John', 'Marston', 'wolf@gmail.com', '87654321');
 
-
+/*
 -- verificar user de priebas
 	-- bien
 CALL SP_LOGIN('deer@gmail.com', '12345678');
@@ -334,3 +335,5 @@ SELECT * FROM transactions;
 
 -- ver indixes
 SHOW INDEXES FROM users;
+
+*/
