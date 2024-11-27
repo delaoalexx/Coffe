@@ -53,7 +53,7 @@ CREATE TABLE error_logs (
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 ) ENGINE=INNODB;
 
--- tarjetas (inusables aun)
+-- tarjetas 
 CREATE TABLE cards (
     card_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
     user_id INT NOT NULL,
@@ -61,6 +61,7 @@ CREATE TABLE cards (
     card_holder VARCHAR(100) NOT NULL,
     expiration_date DATE NOT NULL,
     card_type ENUM('credit', 'debit') NOT NULL,
+    balance FLOAT DEFAULT 0.0,  -- se supone que esto no debe estar pero es solo para ejemplificar el uso de las cards c:
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id),
@@ -283,9 +284,129 @@ END$$
 
 DELIMITER ;
 
+-- Agregar una tarjeta, como es imposible que ridiculo que el usuario meta una tarjeta con el monto que tiene pues se le dara un monto random entre 50 y 1000, este monto estara disponible para el usuario solo para practicidad
+DELIMITER $$
+CREATE PROCEDURE SP_ADD_CARD(
+    IN p_user_id INT,
+    IN p_card_number VARCHAR(16),
+    IN p_card_holder VARCHAR(100),
+    IN p_expiration_date DATE,
+    IN p_card_type ENUM('credit', 'debit')
+)
+BEGIN
+    DECLARE v_random_balance FLOAT;
+    DECLARE v_card_id INT;
+    
+    -- Validate input parameters
+    IF p_user_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'User ID cannot be null';
+    END IF;
+    
+    IF p_card_number IS NULL OR LENGTH(p_card_number) != 16 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invalid card number';
+    END IF;
+    
+    IF p_card_holder IS NULL OR p_card_holder = '' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Card holder name cannot be empty';
+    END IF;
+    
+    IF p_expiration_date IS NULL OR p_expiration_date <= CURRENT_DATE THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invalid expiration date';
+    END IF;
+    
+
+    SET v_random_balance = FLOOR(50 + (RAND() * 950));
+    
+    
+    START TRANSACTION;
+    
+    INSERT INTO cards ( user_id, card_number, card_holder, expiration_date, card_type, balance) 
+    VALUES (p_user_id, p_card_number, p_card_holder, p_expiration_date, p_card_type, v_random_balance);
+    
+    SET v_card_id = LAST_INSERT_ID();
+    
+    COMMIT;
+    
+    SELECT card_id, user_id, card_number, card_holder, expiration_date, card_type, balance, is_active, created_at
+    FROM cards WHERE card_id = v_card_id;
+END$$
+DELIMITER ;
+
+-- HACER PAGOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOS (CFE, TELMEX, SERVICIOS...)
+DELIMITER $$
+CREATE PROCEDURE SP_MAKE_PAYMENT(
+    IN p_user_id INT,             
+    IN p_amount FLOAT,  
+    IN p_institution VARCHAR(100), 
+    IN p_payment_concept VARCHAR(255) 
+)
+BEGIN
+    DECLARE v_user_balance FLOAT;
+    DECLARE v_payment_id INT;
+    DECLARE v_user_active BOOLEAN;
+    
+    IF p_amount <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Payment amount must be greater than 0';
+    END IF;
+    
+    IF p_institution IS NULL OR p_institution = '' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Payment institution cannot be empty';
+    END IF;
+    
+    
+    
+    
+    SELECT is_active INTO v_user_active 
+    FROM users 
+    WHERE user_id = p_user_id;
+    
+    IF v_user_active = FALSE THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'User account is inactive';
+    END IF;
+    
+    SELECT balance INTO v_user_balance
+    FROM accounts 
+    WHERE user_id = p_user_id AND is_active = TRUE
+    LIMIT 1;
+    
+    IF v_user_balance < p_amount THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Insufficient funds';
+    END IF;
+    
+    
+    START TRANSACTION;
+    
+    
+    INSERT INTO transactions (sender_id, recipient_id, amount, message, status) 
+    VALUES (p_user_id, p_user_id, p_amount, CONCAT(p_institution, ': ', p_payment_concept), 'completed');
+    
+    SET v_payment_id = LAST_INSERT_ID();
+    
+    
+    UPDATE accounts 
+    SET balance = balance - p_amount 
+    WHERE user_id = p_user_id AND is_active = TRUE
+    LIMIT 1;
+    
+    COMMIT;
+    
+    SELECT transactions.transaction_id, transactions.amount, SUBSTRING_INDEX(transactions.message, ': ', 1) AS payment_institution, SUBSTRING_INDEX(transactions.message, ': ', -1) AS payment_concept, transactions.status, transactions.created_at, accounts.balance AS remaining_balance
+    FROM transactions JOIN accounts ON transactions.sender_id = accounts.user_id WHERE transactions.transaction_id = v_payment_id;
+    
+END$$
+DELIMITER ;
 
 -- este es user1  de pruebas
 CALL SP_CREATE_USER('Arthur', 'Morgan', 'deer@gmail.com', '12345678');
+
 -- update dinero para empezar a practicar
 UPDATE accounts SET balance = 1000 WHERE user_id = 1;
 
@@ -328,12 +449,26 @@ CALL SP_MAKE_TRANSFER(2, 'deer@gmail.com', -11, 'concepto de pago');
 	-- trasnf de prueba u2 a u1 fallida por autotransaccion
 CALL SP_MAKE_TRANSFER(2, 'wolf@gmail.com', 10, 'concepto de pago');
 
+
+*/
+
+	-- crear cards de prueba
+
+
+CALL SP_ADD_CARD(1, 1234567890987654, 'Arthur Morgan', '2026-12-31', 'credit');
+
+
+-- probar pagos con dinero de monedero
+
+CALL SP_MAKE_PAYMENT(1, 50, 'CFE', 'Pago de luz - Noviembre');
+CALL SP_MAKE_PAYMENT(1, 400, 'NETFLIX', 'Pago streaming');
+    
 -- general tablas
+
 SELECT * FROM users;
 SELECT * FROM accounts;
 SELECT * FROM transactions;
+SELECT * FROM cards;
+SELECT * FROM erro_logs;
 
--- ver indixes
-SHOW INDEXES FROM users;
 
-*/
