@@ -118,3 +118,20 @@ JWT_SECRET=your_secret_key
 PORT=3000
 
 ```
+
+## ENDPOINTS
+
+### Usuarios
+
+###  CREAR USER
+#### POST /localhost:3001/users
+Crea una nueva cuenta bancaria.
+
+```javascript
+{
+  "first_name": "name",
+  "last_name": "last name",
+  "email": "correo@correo.com",
+  "password": "8digitspw"
+}
+```
