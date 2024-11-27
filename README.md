@@ -76,24 +76,24 @@ git clone https://github.com/delaoalexx/Coffe.git
 
   
 ```
-    npm install express body-parser dotenv mysql2
+npm install express body-parser dotenv mysql2
 ```
   
 
 3. Crear la base de datos
 
 ```
-	CREATE DATABASE apiPayMe;
+CREATE DATABASE apiPayMe;
 	
-	USE apiPayMe;
-	...
+USE apiPayMe;
+...
 ```
 
 5. Ejecutar la aplicación
 
-  ```
-	 npm run start
- ```
+```
+npm run start
+```
 
 ## Configuración del Proyecto
 
@@ -105,16 +105,16 @@ git clone https://github.com/delaoalexx/Coffe.git
 
 ```
 
-	DB_HOST=localhost
+DB_HOST=localhost
 	
-	DB_USER=root
+DB_USER=root
 	
-	DB_PASSWORD=your_password
+DB_PASSWORD=your_password
 	
-	DB_NAME=apiPayMe
+DB_NAME=apiPayMe
 	
-	JWT_SECRET=your_secret_key
+JWT_SECRET=your_secret_key
 	
-	PORT=3000
+PORT=3000
 
 ```
