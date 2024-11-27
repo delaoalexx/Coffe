@@ -4,7 +4,7 @@ USE apiPayMe;
 
 -- PENDIENTES: poner nombres en ingles, poner comentarios
 
--- DUDAS: uso del handler en los rollbacks, cambiar a decimales, distribucion de scripts, uso de railway, cambio de prefijos, documentacion de los endpoints, 
+-- DUDAS: uso del handler en los rollbacks, distribucion de scripts, uso de railway, documentacion de los endpoints, 
 
 -- Ale, remember use english for extra '.'
 
