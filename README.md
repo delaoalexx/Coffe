@@ -129,9 +129,32 @@ Crea una nueva cuenta bancaria.
 
 ```javascript
 {
-  "first_name": "name",
-  "last_name": "last name",
-  "email": "correo@correo.com",
-  "password": "8digitspw"
+
+    "first_name": "geroge",
+
+    "last_name": "smith",
+
+    "email": "george@gmail.com",
+
+    "password": "8digitspw"
+
 }
 ```
+
+
+
+## AUTENTICAR USER
+
+#### POST /localhost:3001/login
+LogIn 
+
+```javascript
+{
+
+    "email": "george@gmail.com",
+
+    "password": "8digitspw"
+
+}
+```
+
