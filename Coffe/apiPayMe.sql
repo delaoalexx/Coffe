@@ -2,11 +2,7 @@ DROP DATABASE IF EXISTS apiPayMe;
 CREATE DATABASE apiPayMe;
 USE apiPayMe;
 
--- PENDIENTES: poner nombres en ingles, poner comentarios
-
--- DUDAS: uso del handler en los rollbacks, distribucion de scripts, uso de railway, documentacion de los endpoints, 
-
--- Ale, remember use english for extra '.'
+-- AQUI INICIAN LAS TABLAS !!!!
 
 CREATE TABLE users (
     user_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
@@ -28,7 +24,6 @@ CREATE TABLE accounts (
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 ) ENGINE=INNODB;
 
--- email 
 CREATE TABLE transactions (
     transaction_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
     sender_id INT NOT NULL, -- sender es el usuario que envía la transferencia
@@ -41,8 +36,6 @@ CREATE TABLE transactions (
     FOREIGN KEY (recipient_id) REFERENCES users(user_id)
 ) ENGINE=INNODB;
 
--- errores logs
-
 CREATE TABLE error_logs (
     error_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
     procedure_name VARCHAR(100) NOT NULL,
@@ -53,7 +46,6 @@ CREATE TABLE error_logs (
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 ) ENGINE=INNODB;
 
--- tarjetas 
 CREATE TABLE cards (
     card_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
     user_id INT NOT NULL,
@@ -68,7 +60,8 @@ CREATE TABLE cards (
     INDEX idx_card_number (card_number)
 ) ENGINE=INNODB;
 
--- like a SIGN UP 
+-- AQUI INICIAN LOS SP !!!!
+
 DROP PROCEDURE IF EXISTS SP_CREATE_USER;
 DELIMITER $$
 CREATE PROCEDURE SP_CREATE_USER(
@@ -78,8 +71,6 @@ CREATE PROCEDURE SP_CREATE_USER(
     IN p_password VARCHAR(255)
 )
 BEGIN
-
--- v pq es una  variable
 
     DECLARE v_user_id INT;
     
@@ -117,7 +108,7 @@ BEGIN
         
         SET v_user_id = LAST_INSERT_ID();
         
-        -- al momento de crear un user se crea por defecto su cuenta bancaria, si bien un user puede tener varias cuentas, no necesariamente estas 
+        -- al momento de crear un user se crea por defecto su cuenta bancaria 
         INSERT INTO accounts (user_id, balance)
         VALUES (v_user_id, 0.0);
         
@@ -126,7 +117,8 @@ BEGIN
 END$$
 DELIMITER ;
 
--- like a logIN
+-- AUTENTICAR USEEEEER !!!!
+
 DELIMITER $$
 CREATE PROCEDURE SP_LOGIN(
     IN p_email VARCHAR(255),
@@ -136,14 +128,12 @@ BEGIN
     DECLARE v_user_id INT;
     DECLARE v_is_active BOOLEAN;
     
-    -- autentucar
     SELECT user_id, is_active 
     INTO v_user_id, v_is_active
     FROM users 
     WHERE email = LOWER(p_email) AND password_hash = p_password
     LIMIT 1;
     
-    -- mal pw o email@g.com
     IF v_user_id IS NULL THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Invalid email or password';
@@ -154,30 +144,17 @@ BEGIN
         SET MESSAGE_TEXT = 'Account is inactive';
     END IF;
     
+    SELECT users.user_id, users.email, users.first_name, users.last_name
+    FROM users WHERE users.user_id = v_user_id;
     
-    -- info de user
-    SELECT 
-        users.user_id,
-        users.email,
-        users.first_name,
-        users.last_name
-    FROM users
-    WHERE users.user_id = v_user_id;
-    
-    -- cuentas del user
-    SELECT 
-        accounts.account_id,
-        accounts.balance,
-        accounts.created_at,
-        accounts.is_active
-    FROM accounts
-    WHERE accounts.user_id = v_user_id;
+    SELECT accounts.account_id, accounts.balance, accounts.created_at, accounts.is_active
+    FROM accounts WHERE accounts.user_id = v_user_id;
     
 END$$
 
 DELIMITER ;
 
--- transfrencia
+-- TRANSFERENCIA !!!!
 
 DELIMITER $$
 
@@ -195,9 +172,9 @@ BEGIN
     DECLARE v_recipient_active BOOLEAN;
     
     -- crear handler para rollbacks auto, registrar errores en tabla de errores, poner toodo en ingles(tambien comentarios
-    
     -- monto positivo
     IF p_amount <= 0 THEN
+		CALL SP_LOG_TRANSACTION_ERROR(p_sender_id, p_recipient_email, p_amount, 'Amount must be greater than 0');
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Amount must be greater than 0';
     END IF;
@@ -210,12 +187,14 @@ BEGIN
     
     -- existe recipiente
     IF v_recipient_id IS NULL THEN
+		CALL SP_LOG_TRANSACTION_ERROR(p_sender_id, p_recipient_email, p_amount, 'Recipient not found');
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Recipient not found';
     END IF;
     
     -- no autotransfer
     IF p_sender_id = v_recipient_id THEN
+		CALL SP_LOG_TRANSACTION_ERROR(p_sender_id, p_recipient_email, p_amount, 'You cannot transfer money to your own account');
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'You cannot transfer money to your own account';
     END IF;
@@ -225,23 +204,23 @@ BEGIN
     FROM users WHERE user_id = p_sender_id;
     
     IF v_sender_active = FALSE OR v_recipient_active = FALSE THEN
+		CALL SP_LOG_TRANSACTION_ERROR(p_sender_id, p_recipient_email, p_amount, 'One or both accounts are inactive');
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'One or both accounts are inactive';
     END IF;
     
     -- get dinero del sender
     SELECT balance INTO v_sender_balance
-    FROM accounts 
-    WHERE user_id = p_sender_id AND is_active = TRUE
+    FROM accounts WHERE user_id = p_sender_id AND is_active = TRUE
     LIMIT 1;
     
     -- checar fondos suficientes
     IF v_sender_balance < p_amount THEN
+		CALL SP_LOG_TRANSACTION_ERROR(p_sender_id, p_recipient_email, p_amount, 'Insufficient funds');
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Fondos insuficientes';
+        SET MESSAGE_TEXT = 'Insufficient funds';
     END IF;
     
-   
     START TRANSACTION;
     INSERT INTO transactions (sender_id, recipient_id, amount, message, status)
     VALUES (p_sender_id, v_recipient_id, p_amount, p_message, 'pending');
@@ -267,24 +246,53 @@ BEGIN
     COMMIT;
     
     -- getinfo 
-    SELECT 
-        transactions.transaction_id,
-        transactions.amount,
-        transactions.status,
-        transactions.created_at,
-        transactions.message,
-        u_recipient.email as recipient_email,
-        u_recipient.first_name as recipient_name,
-        u_recipient.last_name as recipient_lastname
-    FROM transactions
-    JOIN users u_recipient ON transactions.recipient_id = u_recipient.user_id
+    SELECT transactions.transaction_id, transactions.amount, transactions.status, transactions.created_at, transactions.message,
+	u_recipient.email as recipient_email, u_recipient.first_name as recipient_name, u_recipient.last_name as recipient_lastname
+    FROM transactions JOIN users u_recipient ON transactions.recipient_id = u_recipient.user_id
     WHERE transactions.transaction_id = v_transaction_id;
     
 END$$
 
 DELIMITER ;
 
--- Agregar una tarjeta, como es imposible que ridiculo que el usuario meta una tarjeta con el monto que tiene pues se le dara un monto random entre 50 y 1000, este monto estara disponible para el usuario solo para practicidad
+-- GUARDAR ERROREEES !!!!
+
+DELIMITER $$
+CREATE PROCEDURE SP_LOG_TRANSACTION_ERROR(
+    IN p_sender_id INT,
+    IN p_recipient_email VARCHAR(255),
+    IN p_amount FLOAT,
+    IN p_error_message VARCHAR(255)
+)
+BEGIN
+
+    DECLARE v_recipient_id INT;
+    
+    SELECT user_id INTO v_recipient_id 
+    FROM users WHERE email = p_recipient_email
+    LIMIT 1;
+    
+    INSERT INTO error_logs (
+        procedure_name, 
+        table_name, 
+        error_message, 
+        user_id
+    ) VALUES (
+        'SP_MAKE_TRANSFER', 
+        'transactions', 
+        CONCAT(
+            'Transfer failed. ', 
+            p_error_message, 
+            '. Sender: ', p_sender_id, 
+            ', Recipient Email: ', p_recipient_email, 
+            ', Amount: ', p_amount
+        ), 
+        p_sender_id
+    );
+END$$
+DELIMITER ;
+
+-- Agregar una tarjeta, como es  ridiculo que el usuario meta una tarjeta con el monto que tiene pues se le dara un monto random entre 50 y 1000, este monto estara disponible para el usuario solo para practicidad
 DELIMITER $$
 CREATE PROCEDURE SP_ADD_CARD(
     IN p_user_id INT,
@@ -318,9 +326,7 @@ BEGIN
         SET MESSAGE_TEXT = 'Invalid expiration date';
     END IF;
     
-
     SET v_random_balance = FLOOR(50 + (RAND() * 950));
-    
     
     START TRANSACTION;
     
@@ -359,9 +365,6 @@ BEGIN
         SET MESSAGE_TEXT = 'Payment institution cannot be empty';
     END IF;
     
-    
-    
-    
     SELECT is_active INTO v_user_active 
     FROM users 
     WHERE user_id = p_user_id;
@@ -372,8 +375,7 @@ BEGIN
     END IF;
     
     SELECT balance INTO v_user_balance
-    FROM accounts 
-    WHERE user_id = p_user_id AND is_active = TRUE
+    FROM accounts WHERE user_id = p_user_id AND is_active = TRUE
     LIMIT 1;
     
     IF v_user_balance < p_amount THEN
@@ -381,15 +383,12 @@ BEGIN
         SET MESSAGE_TEXT = 'Insufficient funds';
     END IF;
     
-    
     START TRANSACTION;
-    
     
     INSERT INTO transactions (sender_id, recipient_id, amount, message, status) 
     VALUES (p_user_id, p_user_id, p_amount, CONCAT(p_institution, ': ', p_payment_concept), 'completed');
     
     SET v_payment_id = LAST_INSERT_ID();
-    
     
     UPDATE accounts 
     SET balance = balance - p_amount 
@@ -398,77 +397,62 @@ BEGIN
     
     COMMIT;
     
-    SELECT transactions.transaction_id, transactions.amount, SUBSTRING_INDEX(transactions.message, ': ', 1) AS payment_institution, SUBSTRING_INDEX(transactions.message, ': ', -1) AS payment_concept, transactions.status, transactions.created_at, accounts.balance AS remaining_balance
+    SELECT transactions.transaction_id, transactions.amount, SUBSTRING_INDEX(transactions.message, ': ', 1) AS payment_institution, SUBSTRING_INDEX(transactions.message, ': ', -1) 
+    AS payment_concept, transactions.status, transactions.created_at, accounts.balance AS remaining_balance
     FROM transactions JOIN accounts ON transactions.sender_id = accounts.user_id WHERE transactions.transaction_id = v_payment_id;
     
 END$$
 DELIMITER ;
 
--- este es user1  de pruebas
-CALL SP_CREATE_USER('Arthur', 'Morgan', 'deer@gmail.com', '12345678');
-
--- update dinero para empezar a practicar
-UPDATE accounts SET balance = 1000 WHERE user_id = 1;
-
--- este es el usuar2 de pruebas
-CALL SP_CREATE_USER('John', 'Marston', 'wolf@gmail.com', '87654321');
-
-/*
--- verificar user de priebas
-	-- bien
-CALL SP_LOGIN('deer@gmail.com', '12345678');
-	-- mal pw
-CALL SP_LOGIN('deer@gmail.com', '012345678');
-	-- mal @
-CALL SP_LOGIN('deere@gmail.com', '12345678');
-
-
--- TRANSFERENCIAS DEPRUEBA 
-
-	-- trasnf de prueba u1 a u2
-CALL SP_MAKE_TRANSFER(1, 'wolf@gmail.com', 10, 'concepto de pago');
--- trasnf de prueba u1 a u2 con null en message
-CALL SP_MAKE_TRANSFER(1, 'wolf@gmail.com', 10, null);
-	-- trasnf de prueba u1 a u2 fallida por mucho dinero
-CALL SP_MAKE_TRANSFER(1, 'wolf@gmail.com', 10000, 'concepto de pago');
-	-- trasnf de prueba u1 a u2 fallida por mal correp
-CALL SP_MAKE_TRANSFER(1, 'wolfs@gmail.com', 10000, 'concepto de pago');
-	-- trasnf de prueba u1 a u2 fallida por numero negativo
-CALL SP_MAKE_TRANSFER(1, 'wolf@gmail.com', -11, 'concepto de pago');
-	-- trasnf de prueba u1 a u2 fallida por autotransaccion
-CALL SP_MAKE_TRANSFER(1, 'deer@gmail.com', 10, 'concepto de pago');
-
-	-- trasnf de prueba u2 a u1
-CALL SP_MAKE_TRANSFER(2, 'deer@gmail.com', 10, 'concepto de pago');
-	-- trasnf de prueba u2 a u1 fallida por mucho dinero
-CALL SP_MAKE_TRANSFER(2, 'deer@gmail.com', 10000, 'concepto de pago');
-	-- trasnf de prueba u2 a u1 fallida por mal correp
-CALL SP_MAKE_TRANSFER(2, 'deerr@gmail.com', 10000, 'concepto de pago');
-	-- trasnf de prueba u2 a u1 fallida por numero negativo
-CALL SP_MAKE_TRANSFER(2, 'deer@gmail.com', -11, 'concepto de pago');
-	-- trasnf de prueba u2 a u1 fallida por autotransaccion
-CALL SP_MAKE_TRANSFER(2, 'wolf@gmail.com', 10, 'concepto de pago');
-
-
-*/
-
-	-- crear cards de prueba
-
-
-CALL SP_ADD_CARD(1, 1234567890987654, 'Arthur Morgan', '2026-12-31', 'credit');
-
-
--- probar pagos con dinero de monedero
-
-CALL SP_MAKE_PAYMENT(1, 50, 'CFE', 'Pago de luz - Noviembre');
-CALL SP_MAKE_PAYMENT(1, 400, 'NETFLIX', 'Pago streaming');
+-- AÑADIR DINERO AL MONEDERO PAYMEEEEEEEEEEEEEE
+DROP PROCEDURE IF EXISTS SP_ADD_FUNDS_FROM_CARD;
+DELIMITER $$
+CREATE PROCEDURE SP_ADD_FUNDS_FROM_CARD(
+    IN p_user_id INT,
+    IN p_card_id INT,
+    IN p_amount FLOAT
+)
+BEGIN
+    DECLARE v_card_exists BOOLEAN DEFAULT FALSE;
+    DECLARE v_card_is_active BOOLEAN DEFAULT FALSE;
+    DECLARE v_card_belongs_to_user BOOLEAN DEFAULT FALSE;
+    DECLARE v_card_balance FLOAT;
     
--- general tablas
-
-SELECT * FROM users;
-SELECT * FROM accounts;
-SELECT * FROM transactions;
-SELECT * FROM cards;
-SELECT * FROM erro_logs;
-
-
+    IF p_amount <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Amount must be greater than 0';
+    END IF;
+    
+    SELECT 
+        EXISTS(SELECT 1 FROM cards WHERE card_id = p_card_id) INTO v_card_exists;
+    
+    IF NOT v_card_exists THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Card does not exist';
+    END IF;
+    
+    -- me quise ahorrar lineas de codigo XD
+    SELECT (user_id = p_user_id) AND is_active = TRUE AND balance >= p_amount
+	INTO v_card_belongs_to_user
+    FROM cards WHERE card_id = p_card_id;
+    
+    IF NOT v_card_belongs_to_user THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Card does not belong to user or is inactive or insufficient card balance';
+    END IF;
+    
+    START TRANSACTION;
+    INSERT INTO transactions (sender_id, recipient_id, amount, message, status) 
+    VALUES (p_user_id, p_user_id, p_amount, CONCAT('Funds added from card ', p_card_id), 'completed');
+    
+    UPDATE accounts 
+    SET balance = balance + p_amount WHERE user_id = p_user_id;
+    UPDATE cards
+    SET balance = balance - p_amount WHERE card_id = p_card_id;
+    
+    COMMIT;
+    SELECT transactions.transaction_id, transactions.amount, transactions.message, transactions.created_at, accounts.balance AS new_account_balance, cards.balance AS new_card_balance
+    FROM transactions JOIN accounts ON transactions.recipient_id = accounts.user_id JOIN cards ON cards.card_id = p_card_id WHERE transactions.transaction_id = LAST_INSERT_ID();
+    
+END$$
+DELIMITER ;

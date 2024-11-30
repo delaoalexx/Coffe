@@ -100,12 +100,10 @@ app.post('/login', async (req, res) => {
 
 
 
-
-
-
-// <3 to the fronts 
+// <3 to the team
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
     console.log(`Server connected.... Port: ${PORT}`);
+    console.log('<3 to the team');
 });
