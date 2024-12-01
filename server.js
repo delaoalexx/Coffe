@@ -209,11 +209,9 @@ app.post('/addCards', async (req, res) => {
 
     let pool;
     let connection;
-
-    const { user_id, card_number, card_holder, expiration_date, card_type } = req.body;
+    const { user_id, card_number, card_holder, expiration_date, card_type } = req.body; // esto es mejor en dentro o fuera del try catch??
 
     try {
-
         pool = await connect();
         connection = await pool.getConnection();
         console.log('Conexión establecida con el pool');
@@ -235,7 +233,7 @@ app.post('/addCards', async (req, res) => {
             error: err.message
         });
     } finally {
-        if (connection) connection.release(); // Liberar la conexión
+        if (connection) connection.release();
     }
 
 });
