@@ -97,7 +97,33 @@ app.post('/login', async (req, res) => {
     }
 });
 
+// SIMPLE TRANSFER
 
+app.post('/transfers', async (req, res) => {
+    let db;
+    try {
+        const { sender_id, recipient_email, amount, message } = req.body;
+        
+        db = await connect();
+        const [result] = await db.execute(
+            'CALL SP_MAKE_TRANSFER(?, ?, ?, ?)',
+            [sender_id, recipient_email, amount, message || null]
+        );
+        
+        res.status(201).json({
+            message: 'Transferencia realizada exitosamente',
+            transfer: result[0][0]
+        });
+    } catch(err) {
+        console.error('Error en transferencia:', err);
+        res.status(500).json({
+            message: 'Error al realizar transferencia',
+            error: err.message
+        });
+    } finally {
+        if(db) db.end();
+    }
+});
 
 
 // <3 to the team
