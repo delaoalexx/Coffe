@@ -96,13 +96,7 @@ USE apiPayMe;
 npm run start
 ```
 
-## Configuración del Proyecto
-
-  
-[soon]
-### Variables de Entorno (.env)
-
-  
+6. No olvides crear un .env con las variables de entorno, modificando el .env.example
 
 ```
 
@@ -119,43 +113,3 @@ DB_PORT=port_example_3306
 PORT=3001
 
 ```
-
-## ENDPOINTS
-
-### Usuarios
-
-###  CREAR USER
-#### POST /localhost:3001/users
-Crea una nueva cuenta bancaria.
-
-```javascript
-{
-
-    "first_name": "geroge",
-
-    "last_name": "smith",
-
-    "email": "george@gmail.com",
-
-    "password": "8digitspw"
-
-}
-```
-
-
-
-## AUTENTICAR USER
-
-#### POST /localhost:3001/login
-LogIn 
-
-```javascript
-{
-
-    "email": "george@gmail.com",
-
-    "password": "8digitspw"
-
-}
-```
-
