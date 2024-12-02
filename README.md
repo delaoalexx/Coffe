@@ -107,16 +107,16 @@ npm run start
 ```
 
 DB_HOST=localhost
-	
+
 DB_USER=root
-	
+
 DB_PASSWORD=your_password
-	
+
 DB_NAME=apiPayMe
-	
-JWT_SECRET=your_secret_key
-	
-PORT=3000
+
+DB_PORT=port_example_3306
+
+PORT=3001
 
 ```
 
