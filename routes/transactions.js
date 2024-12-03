@@ -76,6 +76,7 @@ router.post('/addFunds', async (req, res) => {
 
         pool = req.dbPool;
         connection = await pool.getConnection();
+        
         const [result] = await connection.query(
             'CALL SP_ADD_FUNDS_FROM_CARD(?, ?, ?)',
             [
@@ -93,6 +94,40 @@ router.post('/addFunds', async (req, res) => {
         console.error('Error al agregar fondos:', err);
         res.status(500).json({
             message: 'Error al agregar fondos',
+            error: err.message
+        });
+    } finally {
+        if (connection) connection.release();
+    }
+});
+
+// TRANSACTIONS HISTORY
+router.post('/getTransactions', async (req, res) => {
+    let pool;
+    let connection;
+    try {
+        const { user_id } = req.body;
+
+        pool = req.dbPool;
+        connection = await pool.getConnection();
+
+        const [result] = await connection.query(
+            `SELECT created_at, amount, message, 
+                CASE 
+                    WHEN sender_id = ? THEN 'Gasto'
+                    WHEN recipient_id = ? THEN 'Ingreso'
+                END AS transaction_type
+            FROM transactions WHERE sender_id = ? OR recipient_id = ? ORDER BY created_at DESC`,
+            [user_id, user_id, user_id, user_id]
+        );
+
+        res.status(200).json({
+            transactions: result
+        });
+    } catch (err) {
+        console.error('Error al obtener historial de transacciones:', err);
+        res.status(500).json({
+            message: 'Error al obtener historial de transacciones',
             error: err.message
         });
     } finally {

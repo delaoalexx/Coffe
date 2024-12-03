@@ -91,4 +91,40 @@ router.post('/login', async (req, res) => {
     }
 });
 
+// GET USER NAME
+router.post('/getName', async (req, res) => {
+    let pool;
+    let connection;
+    try {
+        const { user_id } = req.body;
+
+        pool = req.dbPool; 
+        connection = await pool.getConnection();
+        
+        const [result] = await connection.query(
+            'SELECT first_name FROM users WHERE user_id = ?',
+            [user_id]
+        );
+     
+        if (result.length === 0) {
+            return res.status(404).json({
+                message: 'Usuario no encontrado',
+                error: 'No se encontró un usuario con IDS '
+            });
+        }
+     
+        res.status(200).json({
+            user: result[0]
+        });
+    } catch (err) {
+        console.error('Error al obtener nombre de usuario:', err);
+        res.status(500).json({
+            message: 'Error al obtener nombre de usuario',
+            error: err.message
+        });
+    } finally {
+        if (connection) connection.release();
+    }
+});
+
 module.exports = router;
