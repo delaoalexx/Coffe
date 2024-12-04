@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // SIMPLE TRANSFER
+// localhost:3000/transactions/transfers
 router.post('/transfers', async (req, res) => {
     let pool;
     let connection;
@@ -31,8 +32,8 @@ router.post('/transfers', async (req, res) => {
     }
 });  
 
-
 // SIMPLE MAKE PAYMENT
+// localhost:3000/transactions/payments
 router.post('/payments', async (req, res) => {
     let pool;
     let connection;
@@ -68,6 +69,7 @@ router.post('/payments', async (req, res) => {
 });
 
 // SIMPLE ADD FUUNDAS
+// localhost:3000/transactions/addFunds
 router.post('/addFunds', async (req, res) => {
     let pool;
     let connection;
@@ -102,6 +104,7 @@ router.post('/addFunds', async (req, res) => {
 });
 
 // TRANSACTIONS HISTORY
+// localhost:3000/transactions/getTransactions
 router.post('/getTransactions', async (req, res) => {
     let pool;
     let connection;

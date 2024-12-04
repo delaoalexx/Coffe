@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcrypt');
 
 // SIMPLE USER READ
+// localhost:3000/users
 router.get('/', async (req, res) => {
     let pool;
     let connection;
@@ -32,18 +34,30 @@ router.get('/', async (req, res) => {
 });
 
 // SIMPLE USER CREATE
+// localhost:3000/users
 router.post('/', async (req, res) => {
     let pool;
     let connection;
     try {
         const { first_name, last_name, email, password } = req.body;
+        iterationJumps = 8;
+        const hashedPassword = await new Promise((resolve, reject) => {
+            bcrypt.hash(password, iterationJumps, (err, hash) => {
+                if (err) {
+                    console.error('Error al encriptar la contraseña:', err);
+                    reject(new Error('Error interno al procesar la contraseña'));
+                } else {
+                    resolve(hash);
+                }
+            });
+        });
 
         pool = req.dbPool;
         connection = await pool.getConnection();
 
         const [result] = await connection.query(
             'CALL SP_CREATE_USER(?, ?, ?, ?)',
-            [first_name, last_name, email, password]
+            [first_name, last_name, email, hashedPassword]
         );
 
         res.status(201).json({
@@ -63,6 +77,7 @@ router.post('/', async (req, res) => {
 });
 
 // LOGIN
+// localhost:3000/users/login
 router.post('/login', async (req, res) => {
     let pool;
     let connection;
@@ -72,12 +87,32 @@ router.post('/login', async (req, res) => {
         pool = req.dbPool;
         connection = await pool.getConnection();
 
-        const [result] = await connection.query(
-            'CALL SP_LOGIN(?, ?)',
-            [email, password]
+        const [users] = await connection.query(
+            'SELECT password_hash FROM users WHERE email = ?',
+            [email]
         );
 
-        res.json({
+        if (users.length === 0) {
+            return res.status(401).json({
+                message: 'Credenciales inválidas'
+            });
+        }
+
+        const hashedPassword = users[0].password_hash;
+        const isPasswordValid = await bcrypt.compare(password, hashedPassword);
+
+        if (!isPasswordValid) {
+            return res.status(401).json({
+                message: 'Credenciales inválidas'
+            });
+        } else {
+            const [result] = await connection.query(
+                'CALL SP_LOGIN(?, ?)',
+                [email, hashedPassword]
+            );
+        }
+
+        res.status(200).json({
             message: 'Login exitoso'
         });
     } catch (err) {
@@ -92,6 +127,7 @@ router.post('/login', async (req, res) => {
 });
 
 // GET USER NAME
+// localhost:3000/users/getName
 router.post('/getName', async (req, res) => {
     let pool;
     let connection;

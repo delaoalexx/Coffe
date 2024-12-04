@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // SIMPLE ADD CARD
+// localhost:3000/cards/addCards
 router.post('/addCards', async (req, res) => { 
 
     let pool;
@@ -36,6 +37,7 @@ router.post('/addCards', async (req, res) => {
 });
 
 // GET ACCOUNTS BALANCE
+// localhost:3000/cards/getBalance
 router.post('/getBalance', async (req, res) => {
     let pool;
     let connection;
@@ -65,6 +67,7 @@ router.post('/getBalance', async (req, res) => {
 });
 
 // GET INCOME SUMMARY
+// localhost:3000/cards/getIncome
 router.post('/getIncome', async (req, res) => {
     let pool;
     let connection;
@@ -95,6 +98,7 @@ router.post('/getIncome', async (req, res) => {
 });
 
 // GET EXPENSE SUMMARY
+// localhost:3000/cards/getExpense
 router.post('/getExpense', async (req, res) => {
     let pool;
     let connection;
@@ -125,6 +129,7 @@ router.post('/getExpense', async (req, res) => {
 });
 
 // GET USER CARDS
+// localhost:3000/cards/getCards
 router.post('/getCards', async (req, res) => {
     let pool;
     let connection;

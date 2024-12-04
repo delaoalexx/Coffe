@@ -28,6 +28,7 @@ app.use('/users', userRoutes);
 app.use('/transactions', transactionRoutes);
 app.use('/cards', cardRoutes);
 
+//localhost:3000/
 app.get('/', (req, res) => {
     res.json({ message: 'Coffe working properly!' });
 });
