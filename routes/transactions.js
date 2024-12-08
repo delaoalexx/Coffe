@@ -1,13 +1,25 @@
 const express = require('express');
 const router = express.Router();
 
+const jwt = require('jsonwebtoken'); 
+const authVerify = require('../middleware/authVerify');
+
+require('dotenv').config();
+
 // SIMPLE TRANSFER
 // localhost:3000/transactions/transfers
-router.post('/transfers', async (req, res) => {
+router.post('/transfers', authVerify, async (req, res) => {
     let pool;
     let connection;
     try {
-        const { sender_id, recipient_email, amount, message } = req.body;
+        const sender_id = req.user_id;
+        const { recipient_email, amount, message } = req.body;
+
+        if (!recipient_email || !amount) {
+            return res.status(400).json({
+                message: 'Faltan datos obligatorios'
+            });
+        }
 
         pool = req.dbPool;
         connection = await pool.getConnection();
@@ -34,11 +46,12 @@ router.post('/transfers', async (req, res) => {
 
 // SIMPLE MAKE PAYMENT
 // localhost:3000/transactions/payments
-router.post('/payments', async (req, res) => {
+router.post('/payments', authVerify, async (req, res) => {
     let pool;
     let connection;
     try {
-        const { user_id, amount, institution, payment_concept } = req.body;
+        const user_id = req.user_id;
+        const { amount, institution, payment_concept } = req.body;
 
         pool = req.dbPool;
         connection = await pool.getConnection();
@@ -70,11 +83,12 @@ router.post('/payments', async (req, res) => {
 
 // SIMPLE ADD FUUNDAS
 // localhost:3000/transactions/addFunds
-router.post('/addFunds', async (req, res) => {
+router.post('/addFunds', authVerify, async (req, res) => {
     let pool;
     let connection;
     try {
-        const { user_id, card_id, amount } = req.body;
+        const user_id = req.user_id;
+        const { card_id, amount } = req.body;
 
         pool = req.dbPool;
         connection = await pool.getConnection();
@@ -105,11 +119,11 @@ router.post('/addFunds', async (req, res) => {
 
 // TRANSACTIONS HISTORY
 // localhost:3000/transactions/getTransactions
-router.post('/getTransactions', async (req, res) => {
+router.post('/getTransactions', authVerify, async (req, res) => {
     let pool;
     let connection;
     try {
-        const { user_id } = req.body;
+        const user_id = req.user_id;
 
         pool = req.dbPool;
         connection = await pool.getConnection();

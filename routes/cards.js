@@ -1,13 +1,27 @@
 const express = require('express');
 const router = express.Router();
 
+const jwt = require('jsonwebtoken'); 
+const authVerify = require('../middleware/authVerify');
+
+require('dotenv').config();
+
 // SIMPLE ADD CARD
 // localhost:3000/cards/addCards
 router.post('/addCards', async (req, res) => { 
 
     let pool;
     let connection;
-    const { user_id, card_number, card_holder, expiration_date, card_type } = req.body; // esto es mejor en dentro o fuera del try catch??
+
+    const user_id = req.body.user_id;
+
+    const { card_number, card_holder, expiration_date, card_type } = req.body; 
+    // esto es mejor en dentro o fuera del try catch??
+    if (!card_number || !card_holder || !expiration_date || !card_type) {
+        return res.status(400).json({ 
+            message: 'Faltan datos obligatorios'
+        });
+    }
 
     try {
         pool = req.dbPool;
@@ -42,7 +56,7 @@ router.post('/getBalance', async (req, res) => {
     let pool;
     let connection;
     try {
-        const { user_id } = req.body;
+        const user_id = req.body.user_id;
 
         pool = req.dbPool;
         connection = await pool.getConnection();
@@ -73,7 +87,7 @@ router.post('/getIncome', async (req, res) => {
     let connection;
     try {
 
-        const { user_id } = req.body;
+        const user_id = req.body.user_id;
 
         pool = req.dbPool;
         connection = await pool.getConnection();
@@ -104,7 +118,7 @@ router.post('/getExpense', async (req, res) => {
     let connection;
     try {
 
-        const { user_id } = req.body;
+        const user_id = req.body.user_id;
 
         pool = req.dbPool;
         connection = await pool.getConnection();
@@ -134,7 +148,7 @@ router.post('/getCards', async (req, res) => {
     let pool;
     let connection;
     try {
-        const { user_id } = req.body;
+        const user_id = req.body.user_id;
 
         pool = req.dbPool;
         connection = await pool.getConnection();
