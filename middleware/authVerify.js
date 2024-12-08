@@ -5,7 +5,7 @@ require('dotenv').config();
 function authVerify(req, res, next) {
     const token = req.header('Authorization');
    
-    if (!token)
+    if (!token) // Si no hay ningun token
         return res.status(401).json({'error': 'You do not have permission to access'});
    
     const bearer = token.split(' ')[1];
