@@ -1,13 +1,25 @@
 const express = require('express');
 const router = express.Router();
 
+const jwt = require('jsonwebtoken'); 
+const authVerify = require('../middleware/authVerify');
+
+require('dotenv').config();
+
 // SIMPLE ADD CARD
 // localhost:3000/cards/addCards
-router.post('/addCards', async (req, res) => { 
+router.post('/addCards', authVerify, async (req, res) => { 
 
     let pool;
     let connection;
-    const { user_id, card_number, card_holder, expiration_date, card_type } = req.body; // esto es mejor en dentro o fuera del try catch??
+    const user_id = req.user_id;
+    const { card_number, card_holder, expiration_date, card_type } = req.body; 
+    // esto es mejor en dentro o fuera del try catch??
+    if (!card_number || !card_holder || !expiration_date || !card_type) {
+        return res.status(400).json({ 
+            message: 'Faltan datos obligatorios'
+        });
+    }
 
     try {
         pool = req.dbPool;
@@ -38,11 +50,11 @@ router.post('/addCards', async (req, res) => {
 
 // GET ACCOUNTS BALANCE
 // localhost:3000/cards/getBalance
-router.post('/getBalance', async (req, res) => {
+router.post('/getBalance', authVerify, async (req, res) => {
     let pool;
     let connection;
     try {
-        const { user_id } = req.body;
+        const user_id = req.user_id;
 
         pool = req.dbPool;
         connection = await pool.getConnection();
@@ -68,12 +80,11 @@ router.post('/getBalance', async (req, res) => {
 
 // GET INCOME SUMMARY
 // localhost:3000/cards/getIncome
-router.post('/getIncome', async (req, res) => {
+router.post('/getIncome', authVerify, async (req, res) => {
     let pool;
     let connection;
     try {
-
-        const { user_id } = req.body;
+        const user_id = req.user_id;
 
         pool = req.dbPool;
         connection = await pool.getConnection();
@@ -99,12 +110,11 @@ router.post('/getIncome', async (req, res) => {
 
 // GET EXPENSE SUMMARY
 // localhost:3000/cards/getExpense
-router.post('/getExpense', async (req, res) => {
+router.post('/getExpense', authVerify, async (req, res) => {
     let pool;
     let connection;
     try {
-
-        const { user_id } = req.body;
+        const user_id = req.user_id;
 
         pool = req.dbPool;
         connection = await pool.getConnection();
@@ -130,11 +140,11 @@ router.post('/getExpense', async (req, res) => {
 
 // GET USER CARDS
 // localhost:3000/cards/getCards
-router.post('/getCards', async (req, res) => {
+router.post('/getCards', authVerify, async (req, res) => {
     let pool;
     let connection;
     try {
-        const { user_id } = req.body;
+        const user_id = req.user_id;
 
         pool = req.dbPool;
         connection = await pool.getConnection();
