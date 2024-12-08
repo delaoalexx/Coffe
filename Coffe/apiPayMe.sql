@@ -17,7 +17,9 @@ CREATE TABLE users (
 
 CREATE TABLE accounts (
     account_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
-    balance FLOAT DEFAULT 0.0, -- o decimal??
+    balance FLOAT DEFAULT 0.0,
+    income FLOAT DEFAULT 0.0,
+    expense FLOAT DEFAULT 0.0, 
     user_id INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT true,
@@ -131,7 +133,7 @@ BEGIN
     SELECT user_id, is_active 
     INTO v_user_id, v_is_active
     FROM users 
-    WHERE email = LOWER(p_email) AND password_hash = p_password
+    WHERE email = LOWER(p_email) AND password_hash = p_password -- forma facil de evitar que esto truene por comparaar minúsculas y mayúsculas
     LIMIT 1;
     
     IF v_user_id IS NULL THEN
@@ -158,6 +160,7 @@ DELIMITER ;
 
 DELIMITER $$
 
+DELIMITER $$
 CREATE PROCEDURE SP_MAKE_TRANSFER(
     IN p_sender_id INT,             
     IN p_recipient_email VARCHAR(255), 
@@ -171,10 +174,9 @@ BEGIN
     DECLARE v_sender_active BOOLEAN;
     DECLARE v_recipient_active BOOLEAN;
     
-    -- crear handler para rollbacks auto, registrar errores en tabla de errores, poner toodo en ingles(tambien comentarios
     -- monto positivo
     IF p_amount <= 0 THEN
-		CALL SP_LOG_TRANSACTION_ERROR(p_sender_id, p_recipient_email, p_amount, 'Amount must be greater than 0');
+        CALL SP_LOG_TRANSACTION_ERROR(p_sender_id, p_recipient_email, p_amount, 'Amount must be greater than 0');
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Amount must be greater than 0';
     END IF;
@@ -187,14 +189,14 @@ BEGIN
     
     -- existe recipiente
     IF v_recipient_id IS NULL THEN
-		CALL SP_LOG_TRANSACTION_ERROR(p_sender_id, p_recipient_email, p_amount, 'Recipient not found');
+        CALL SP_LOG_TRANSACTION_ERROR(p_sender_id, p_recipient_email, p_amount, 'Recipient not found');
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Recipient not found';
     END IF;
     
     -- no autotransfer
     IF p_sender_id = v_recipient_id THEN
-		CALL SP_LOG_TRANSACTION_ERROR(p_sender_id, p_recipient_email, p_amount, 'You cannot transfer money to your own account');
+        CALL SP_LOG_TRANSACTION_ERROR(p_sender_id, p_recipient_email, p_amount, 'You cannot transfer money to your own account');
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'You cannot transfer money to your own account';
     END IF;
@@ -204,7 +206,7 @@ BEGIN
     FROM users WHERE user_id = p_sender_id;
     
     IF v_sender_active = FALSE OR v_recipient_active = FALSE THEN
-		CALL SP_LOG_TRANSACTION_ERROR(p_sender_id, p_recipient_email, p_amount, 'One or both accounts are inactive');
+        CALL SP_LOG_TRANSACTION_ERROR(p_sender_id, p_recipient_email, p_amount, 'One or both accounts are inactive');
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'One or both accounts are inactive';
     END IF;
@@ -216,7 +218,7 @@ BEGIN
     
     -- checar fondos suficientes
     IF v_sender_balance < p_amount THEN
-		CALL SP_LOG_TRANSACTION_ERROR(p_sender_id, p_recipient_email, p_amount, 'Insufficient funds');
+        CALL SP_LOG_TRANSACTION_ERROR(p_sender_id, p_recipient_email, p_amount, 'Insufficient funds');
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Insufficient funds';
     END IF;
@@ -227,14 +229,17 @@ BEGIN
     
     SET v_transaction_id = LAST_INSERT_ID();
     
-    -- Actualizar dinero
+    -- Ingresos y Gastos que no habia hecho :,C (senders version)
     UPDATE accounts 
-    SET balance = balance - p_amount 
+    SET balance = balance - p_amount,
+        expense = expense + p_amount 
     WHERE user_id = p_sender_id AND is_active = TRUE
     LIMIT 1;
     
+    -- Actualizar dinero y registrar income para el recipient (recipents version)
     UPDATE accounts 
-    SET balance = balance + p_amount 
+    SET balance = balance + p_amount,
+        income = income + p_amount 
     WHERE user_id = v_recipient_id AND is_active = TRUE
     LIMIT 1;
     
@@ -247,12 +252,11 @@ BEGIN
     
     -- getinfo 
     SELECT transactions.transaction_id, transactions.amount, transactions.status, transactions.created_at, transactions.message,
-	u_recipient.email as recipient_email, u_recipient.first_name as recipient_name, u_recipient.last_name as recipient_lastname
+    u_recipient.email as recipient_email, u_recipient.first_name as recipient_name, u_recipient.last_name as recipient_lastname
     FROM transactions JOIN users u_recipient ON transactions.recipient_id = u_recipient.user_id
     WHERE transactions.transaction_id = v_transaction_id;
     
 END$$
-
 DELIMITER ;
 
 -- GUARDAR ERROREEES !!!!
@@ -305,7 +309,7 @@ BEGIN
     DECLARE v_random_balance FLOAT;
     DECLARE v_card_id INT;
     
-    -- Validate input parameters
+    
     IF p_user_id IS NULL THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'User ID cannot be null';
@@ -390,15 +394,17 @@ BEGIN
     
     SET v_payment_id = LAST_INSERT_ID();
     
+	-- Ingresos y Gastos que no habia hecho :,C
     UPDATE accounts 
-    SET balance = balance - p_amount 
+    SET balance = balance - p_amount,
+        expense = expense + p_amount 
     WHERE user_id = p_user_id AND is_active = TRUE
     LIMIT 1;
     
     COMMIT;
     
-    SELECT transactions.transaction_id, transactions.amount, SUBSTRING_INDEX(transactions.message, ': ', 1) AS payment_institution, SUBSTRING_INDEX(transactions.message, ': ', -1) 
-    AS payment_concept, transactions.status, transactions.created_at, accounts.balance AS remaining_balance
+    SELECT transactions.transaction_id, transactions.amount, SUBSTRING_INDEX(transactions.message, ': ', 1) AS payment_institution, SUBSTRING_INDEX(transactions.message, ': ', -1) AS payment_concept, 
+    transactions.status, transactions.created_at, accounts.balance AS remaining_balance, accounts.expense AS total_expenses
     FROM transactions JOIN accounts ON transactions.sender_id = accounts.user_id WHERE transactions.transaction_id = v_payment_id;
     
 END$$
@@ -433,7 +439,7 @@ BEGIN
     
     -- me quise ahorrar lineas de codigo XD
     SELECT (user_id = p_user_id) AND is_active = TRUE AND balance >= p_amount
-	INTO v_card_belongs_to_user
+    INTO v_card_belongs_to_user
     FROM cards WHERE card_id = p_card_id;
     
     IF NOT v_card_belongs_to_user THEN
@@ -445,14 +451,39 @@ BEGIN
     INSERT INTO transactions (sender_id, recipient_id, amount, message, status) 
     VALUES (p_user_id, p_user_id, p_amount, CONCAT('Funds added from card ', p_card_id), 'completed');
     
+    -- Ingresos y Gastos que no habia hecho :,C
     UPDATE accounts 
-    SET balance = balance + p_amount WHERE user_id = p_user_id;
+    SET balance = balance + p_amount,
+        income = income + p_amount 
+    WHERE user_id = p_user_id;
+    
     UPDATE cards
     SET balance = balance - p_amount WHERE card_id = p_card_id;
     
     COMMIT;
-    SELECT transactions.transaction_id, transactions.amount, transactions.message, transactions.created_at, accounts.balance AS new_account_balance, cards.balance AS new_card_balance
+    
+    SELECT 
+        transactions.transaction_id, transactions.amount, transactions.message, transactions.created_at, accounts.balance AS new_account_balance, accounts.income AS total_income,cards.balance AS new_card_balance
     FROM transactions JOIN accounts ON transactions.recipient_id = accounts.user_id JOIN cards ON cards.card_id = p_card_id WHERE transactions.transaction_id = LAST_INSERT_ID();
     
 END$$
 DELIMITER ;
+
+-- vista vea
+DROP VIEW IF EXISTS user_user;
+CREATE VIEW user_user AS
+SELECT 
+    users.user_id,
+    users.email,
+    users.first_name,
+    users.last_name,
+    users.created_at AS user_created_at,
+    users.is_active AS user_is_active,
+    accounts.account_id,
+    accounts.balance,
+    accounts.created_at AS account_created_at,
+    accounts.is_active AS account_is_active
+FROM 
+    users
+JOIN 
+    accounts ON users.user_id = accounts.user_id;
