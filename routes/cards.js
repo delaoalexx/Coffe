@@ -12,13 +12,7 @@ router.post('/addCards', authVerify, async (req, res) => {
 
     let pool;
     let connection;
-<<<<<<< HEAD
     const user_id = req.user_id;
-=======
-
-    const user_id = req.body.user_id;
-
->>>>>>> Add-tokens
     const { card_number, card_holder, expiration_date, card_type } = req.body; 
     // esto es mejor en dentro o fuera del try catch??
     if (!card_number || !card_holder || !expiration_date || !card_type) {
@@ -60,11 +54,7 @@ router.post('/getBalance', authVerify, async (req, res) => {
     let pool;
     let connection;
     try {
-<<<<<<< HEAD
         const user_id = req.user_id;
-=======
-        const user_id = req.body.user_id;
->>>>>>> Add-tokens
 
         pool = req.dbPool;
         connection = await pool.getConnection();
@@ -94,12 +84,7 @@ router.post('/getIncome', authVerify, async (req, res) => {
     let pool;
     let connection;
     try {
-<<<<<<< HEAD
         const user_id = req.user_id;
-=======
-
-        const user_id = req.body.user_id;
->>>>>>> Add-tokens
 
         pool = req.dbPool;
         connection = await pool.getConnection();
@@ -129,12 +114,7 @@ router.post('/getExpense', authVerify, async (req, res) => {
     let pool;
     let connection;
     try {
-<<<<<<< HEAD
         const user_id = req.user_id;
-=======
-
-        const user_id = req.body.user_id;
->>>>>>> Add-tokens
 
         pool = req.dbPool;
         connection = await pool.getConnection();
@@ -164,11 +144,7 @@ router.post('/getCards', authVerify, async (req, res) => {
     let pool;
     let connection;
     try {
-<<<<<<< HEAD
         const user_id = req.user_id;
-=======
-        const user_id = req.body.user_id;
->>>>>>> Add-tokens
 
         pool = req.dbPool;
         connection = await pool.getConnection();
