@@ -2,9 +2,14 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 
+const jwt = require('jsonwebtoken'); 
+const authVerify = require('../middleware/authVerify');
+
+require('dotenv').config();
+
 // SIMPLE USER READ
 // localhost:3000/users
-router.get('/', async (req, res) => {
+router.get('/', authVerify, async (req, res) => {
     let pool;
     let connection;
     try {
@@ -29,7 +34,8 @@ router.get('/', async (req, res) => {
             error: err.message
         });
     } finally {
-        if (connection) connection.release(); // se supone que esto hace que se libere la conexion y asi poder spamear consultas a lo tonto
+        if (connection) connection.release(); 
+        // se supone que esto hace que se libere la conexion y asi poder spamear consultas a lo tonto
     }
 });
 
@@ -88,7 +94,7 @@ router.post('/login', async (req, res) => {
         connection = await pool.getConnection();
 
         const [users] = await connection.query(
-            'SELECT password_hash FROM users WHERE email = ?',
+            'SELECT user_id, password_hash FROM users WHERE email = ?',
             [email]
         );
 
@@ -105,20 +111,19 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({
                 message: 'Credenciales inválidas'
             });
-        } else {
-            const [result] = await connection.query(
-                'CALL SP_LOGIN(?, ?)',
-                [email, hashedPassword]
-            );
         }
 
+        // 🥶🥶🥶
+        const token = jwt.sign({ user_id: users[0].user_id }, process.env.SECRET, { expiresIn: '1h' });
+
         res.status(200).json({
-            message: 'Login exitoso'
+            message: 'Login exitoso',
+            token: token
         });
     } catch (err) {
         console.error('Error en login:', err);
         res.status(401).json({
-            message: 'Credeniales inválidas',
+            message: 'Credenciales inválidas',
             error: err.message
         });
     } finally {
@@ -128,11 +133,11 @@ router.post('/login', async (req, res) => {
 
 // GET USER NAME
 // localhost:3000/users/getName
-router.post('/getName', async (req, res) => {
+router.post('/getName', authVerify, async (req, res) => {
     let pool;
     let connection;
     try {
-        const { user_id } = req.body;
+        const user_id = req.user_id;
 
         pool = req.dbPool; 
         connection = await pool.getConnection();
